@@ -17,7 +17,7 @@ def generate_launch_description():
                 executable="showimage",
                 name="rgb_showimage",
                 parameters=[{"window_name": "RGB"}],
-                remappings=[("image", "kinect/image_raw")],
+                remappings=[("image", "kinect/rgb/image_raw")],
             ),
             launch_ros.actions.Node(
                 package="image_tools",

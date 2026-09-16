@@ -15,7 +15,7 @@ static std::optional<rclcpp::Time> _depth_flag;
 static std::optional<rclcpp::Time> _rgb_flag;
 
 KinectRosComponent::KinectRosComponent(const rclcpp::NodeOptions & options)
-: Node("kinect_ros2", options)
+: Node("kinect_ros2", "kinect", options)
 {
   timer_ = create_wall_timer(1ms, std::bind(&KinectRosComponent::timer_callback, this));
   
@@ -36,8 +36,8 @@ KinectRosComponent::KinectRosComponent(const rclcpp::NodeOptions & options)
   depth_info_.header.frame_id = "kinect_depth";
 
   depth_pub_ = image_transport::create_camera_publisher(this, "depth/image_raw");
-  rgb_pub_ = image_transport::create_camera_publisher(this, "image_raw");
-
+  rgb_pub_ = image_transport::create_camera_publisher(this, "rgb/image_raw");
+  
   int ret = freenect_init(&fn_ctx_, NULL);
   if (ret < 0) {
     RCLCPP_ERROR(get_logger(), "ERROR INIT");
@@ -146,7 +146,6 @@ void KinectRosComponent::timer_callback()
     // cv::Mat depth_8UC1(_depth_image, CV_16UC1);
     // depth_8UC1.convertTo(depth_8UC1, CV_8UC1);
 
-    RCLCPP_INFO_STREAM(get_logger(), "Publishing depth with frame_id " << header.frame_id);
     auto msg = cv_bridge::CvImage(header, "16UC1", _depth_image).toImageMsg();
     depth_pub_.publish(*msg, depth_info_);
 
@@ -159,7 +158,7 @@ void KinectRosComponent::timer_callback()
     header.frame_id = rgb_info_.header.frame_id;
     header.stamp = _rgb_flag.value();
     rgb_info_.header.stamp = _rgb_flag.value();
-    RCLCPP_INFO_STREAM(get_logger(), "Publishing RGB with frame_id " << header.frame_id);
+
     auto msg = cv_bridge::CvImage(header, "rgb8", _rgb_image).toImageMsg();
     rgb_pub_.publish(*msg, rgb_info_);
 
