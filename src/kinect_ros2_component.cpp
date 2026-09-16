@@ -11,8 +11,8 @@ static cv::Mat _rgb_image(cv::Mat::zeros(cv::Size(640, 480), CV_8UC3));
 static uint16_t * _freenect_depth_pointer = nullptr;
 static uint8_t * _freenect_rgb_pointer = nullptr;
 
-static bool _depth_flag;
-static bool _rgb_flag;
+static std::optional<rclcpp::Time> _depth_flag;
+static std::optional<rclcpp::Time> _rgb_flag;
 
 KinectRosComponent::KinectRosComponent(const rclcpp::NodeOptions & options)
 : Node("kinect_ros2", options)
@@ -74,6 +74,7 @@ KinectRosComponent::KinectRosComponent(const rclcpp::NodeOptions & options)
     rclcpp::shutdown();
   }
 
+  freenect_set_user(fn_dev_, this);
   freenect_set_depth_callback(fn_dev_, depth_cb);
   freenect_set_video_callback(fn_dev_, rgb_cb);
 
@@ -108,68 +109,63 @@ to a new cv::Mat. This way, the callback only used to set a flag that indicates 
 has arrived. The flag is unset when a msg is published */
 void KinectRosComponent::depth_cb(freenect_device * dev, void * depth_ptr, uint32_t timestamp)
 {
-  (void)dev;       // Mark 'dev' as unused
   (void)timestamp; // Mark 'timestamp' as unused
-
-  if (_depth_flag) {
-    return;
-  }
 
   if (_freenect_depth_pointer != (uint16_t *)depth_ptr) {
     _depth_image = cv::Mat(480, 640, CV_16UC1, depth_ptr);
     _freenect_depth_pointer = (uint16_t *)depth_ptr;
   }
 
-  _depth_flag = true;
+  auto* self = static_cast<KinectRosComponent*>(freenect_get_user(dev));
+  _depth_flag = self->now();
 }
 
 void KinectRosComponent::rgb_cb(freenect_device * dev, void * rgb_ptr, uint32_t timestamp)
 {
-  (void)dev;       // Mark 'dev' as unused
   (void)timestamp; // Mark 'timestamp' as unused
-
-  if (_rgb_flag) {
-    return;
-  }
 
   if (_freenect_rgb_pointer != (uint8_t *)rgb_ptr) {
     _rgb_image = cv::Mat(480, 640, CV_8UC3, rgb_ptr);
     _freenect_rgb_pointer = (uint8_t *)rgb_ptr;
   }
 
-  _rgb_flag = true;
+  auto* self = static_cast<KinectRosComponent*>(freenect_get_user(dev));
+  _rgb_flag = self->now();
 }
 
 void KinectRosComponent::timer_callback()
 {
   freenect_process_events(fn_ctx_);
   auto header = std_msgs::msg::Header();
-  header.frame_id = "kinect_depth";
-
-  auto stamp = now();
-  header.stamp = stamp;
-  depth_info_.header.stamp = stamp;
-
+  
   if (_depth_flag) {
+    header.frame_id = depth_info_.header.frame_id;
+    header.stamp = _depth_flag.value();
+    depth_info_.header.stamp = _depth_flag.value();
     //convert 16bit to 8bit mono
     // cv::Mat depth_8UC1(_depth_image, CV_16UC1);
     // depth_8UC1.convertTo(depth_8UC1, CV_8UC1);
 
+    RCLCPP_INFO_STREAM(get_logger(), "Publishing depth with frame_id " << header.frame_id);
     auto msg = cv_bridge::CvImage(header, "16UC1", _depth_image).toImageMsg();
     depth_pub_.publish(*msg, depth_info_);
 
     // cv::imshow("Depth", _depth_image);
     // cv::waitKey(1);
-    _depth_flag = false;
+    _depth_flag = std::nullopt;
   }
 
   if (_rgb_flag) {
-    auto msg = cv_bridge::CvImage(std_msgs::msg::Header(), "rgb8", _rgb_image).toImageMsg();
+    header.frame_id = rgb_info_.header.frame_id;
+    header.stamp = _rgb_flag.value();
+    rgb_info_.header.stamp = _rgb_flag.value();
+    RCLCPP_INFO_STREAM(get_logger(), "Publishing RGB with frame_id " << header.frame_id);
+    auto msg = cv_bridge::CvImage(header, "rgb8", _rgb_image).toImageMsg();
     rgb_pub_.publish(*msg, rgb_info_);
 
     // cv::imshow("RGB", _rgb_image);
     // cv::waitKey(1);
-    _rgb_flag = false;
+    _rgb_flag = std::nullopt;
   }
 }
 }
