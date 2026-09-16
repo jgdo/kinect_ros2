@@ -15,7 +15,7 @@ static std::optional<rclcpp::Time> _depth_flag;
 static std::optional<rclcpp::Time> _rgb_flag;
 
 KinectRosComponent::KinectRosComponent(const rclcpp::NodeOptions & options)
-: Node("kinect_ros2", "kinect", options)
+: Node("kinect_ros2", "/kinect", options)
 {
   timer_ = create_wall_timer(1ms, std::bind(&KinectRosComponent::timer_callback, this));
   
@@ -31,13 +31,13 @@ KinectRosComponent::KinectRosComponent(const rclcpp::NodeOptions & options)
     "file://" + pkg_share + "/cfg/calibration_rgb.yaml");
 
   rgb_info_ = rgb_info_manager_->getCameraInfo();
-  rgb_info_.header.frame_id = "kinect_rgb";
+  rgb_info_.header.frame_id = "kinect_rgb_optical_frame";
   depth_info_ = depth_info_manager_->getCameraInfo();
-  depth_info_.header.frame_id = "kinect_depth";
+  depth_info_.header.frame_id = "kinect_depth_optical_frame";
 
   depth_pub_ = image_transport::create_camera_publisher(this, "depth/image_raw");
   rgb_pub_ = image_transport::create_camera_publisher(this, "rgb/image_raw");
-  
+
   int ret = freenect_init(&fn_ctx_, NULL);
   if (ret < 0) {
     RCLCPP_ERROR(get_logger(), "ERROR INIT");

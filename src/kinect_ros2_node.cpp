@@ -17,7 +17,7 @@ rclcpp::node_interfaces::NodeBaseInterface::SharedPtr get_depth_image_proc_compo
   options.use_intra_process_comms(true);
   std::vector<std::string> arguments {
     "--ros-args",
-    "--remap", "__ns:=kinect",
+    "--remap", "__ns:=/kinect",
     "--remap", "camera_info:=depth/camera_info"
   };
   options.arguments(arguments);

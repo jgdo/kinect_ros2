@@ -18,6 +18,7 @@
   <depend>depth_image_proc</depend>
 
   <exec_depend>image_tools</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
